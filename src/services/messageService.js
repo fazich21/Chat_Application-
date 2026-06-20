@@ -1,6 +1,12 @@
 import { db, supabase } from "./supabase.js";
 import { MESSAGES_PAGE_SIZE } from "../utils/constants.js";
 
+const MESSAGE_COLUMNS = `
+  id, conversation_id, sender_id, content_type, content, image_url,
+  audio_url, audio_duration, reply_to_id, created_at, deleted_at,
+  profiles!messages_sender_id_fkey(id, username, avatar_url)
+`;
+
 /**
  * Fetch a page of messages for a conversation, oldest-first within the page.
  * `before` — ISO timestamp cursor; pass the oldest loaded message's created_at
@@ -8,11 +14,7 @@ import { MESSAGES_PAGE_SIZE } from "../utils/constants.js";
  */
 export async function fetchMessages(conversationId, { before } = {}) {
   let query = db("messages")
-    .select(`
-      id, conversation_id, sender_id, content_type, content, image_url,
-      reply_to_id, created_at, deleted_at,
-      profiles!messages_sender_id_fkey(id, username, avatar_url)
-    `)
+    .select(MESSAGE_COLUMNS)
     .eq("conversation_id", conversationId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
@@ -23,7 +25,6 @@ export async function fetchMessages(conversationId, { before } = {}) {
   const { data, error } = await query;
   if (error) throw error;
 
-  // Reverse to chronological (oldest → newest) for rendering
   return (data ?? []).reverse();
 }
 
@@ -37,11 +38,7 @@ export async function sendTextMessage({ conversationId, senderId, content, reply
       content,
       reply_to_id: replyToId ?? null,
     })
-    .select(`
-      id, conversation_id, sender_id, content_type, content, image_url,
-      reply_to_id, created_at,
-      profiles!messages_sender_id_fkey(id, username, avatar_url)
-    `)
+    .select(MESSAGE_COLUMNS)
     .single();
 
   if (error) throw error;
@@ -58,11 +55,27 @@ export async function sendImageMessage({ conversationId, senderId, imageUrl, cap
       content: caption ?? null,
       image_url: imageUrl,
     })
-    .select(`
-      id, conversation_id, sender_id, content_type, content, image_url,
-      reply_to_id, created_at,
-      profiles!messages_sender_id_fkey(id, username, avatar_url)
-    `)
+    .select(MESSAGE_COLUMNS)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Send a voice message. `audioUrl` must already be uploaded to Storage.
+ * `duration` is in whole seconds.
+ */
+export async function sendAudioMessage({ conversationId, senderId, audioUrl, duration }) {
+  const { data, error } = await db("messages")
+    .insert({
+      conversation_id: conversationId,
+      sender_id: senderId,
+      content_type: "audio",
+      audio_url: audioUrl,
+      audio_duration: duration,
+    })
+    .select(MESSAGE_COLUMNS)
     .single();
 
   if (error) throw error;
@@ -114,13 +127,8 @@ export function subscribeToMessages(conversationId, onInsert) {
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "messages", filter: `conversation_id=eq.${conversationId}` },
       async (payload) => {
-        // Fetch the row with sender profile joined (the realtime payload is the raw row only)
         const { data } = await db("messages")
-          .select(`
-            id, conversation_id, sender_id, content_type, content, image_url,
-            reply_to_id, created_at,
-            profiles!messages_sender_id_fkey(id, username, avatar_url)
-          `)
+          .select(MESSAGE_COLUMNS)
           .eq("id", payload.new.id)
           .single();
         if (data) onInsert(data);
@@ -132,9 +140,7 @@ export function subscribeToMessages(conversationId, onInsert) {
 }
 
 /**
- * Subscribe to seen-receipt updates for a conversation (any insert into message_seen
- * for messages belonging to this conversation). Since message_seen has no conversation_id
- * column, we subscribe broadly and let the caller filter by message id.
+ * Subscribe to seen-receipt updates for a conversation.
  */
 export function subscribeToSeenReceipts(onInsert) {
   const channel = supabase

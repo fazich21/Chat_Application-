@@ -25,10 +25,19 @@ export function buildMessageListItems({
       lastSenderId = null; // reset grouping after a date break
     }
 
+    // System messages (group created, member joined/left/removed) render as
+    // centered pills, not chat bubbles — skip all the bubble-grouping logic.
+    if (msg.content_type === "system") {
+      items.push({ type: "system", id: msg.id, content: msg.content, time: formatMessageTime(msg.created_at) });
+      lastSenderId = null; // break grouping around system events
+      return;
+    }
+
     const isOwn = msg.sender_id === currentUserId;
     const nextMsg = messages[i + 1];
     const isLastInGroup =
-      !nextMsg || nextMsg.sender_id !== msg.sender_id || getDateLabel(nextMsg.created_at) !== dateLabel;
+      !nextMsg || nextMsg.sender_id !== msg.sender_id || nextMsg.content_type === "system" ||
+      getDateLabel(nextMsg.created_at) !== dateLabel;
     const isFirstInGroup = lastSenderId !== msg.sender_id;
 
     let status;
@@ -49,6 +58,8 @@ export function buildMessageListItems({
       id: msg.id,
       content: msg.content,
       imageUrl: msg.image_url,
+      audioUrl: msg.audio_url,
+      audioDuration: msg.audio_duration,
       time: formatMessageTime(msg.created_at),
       isOwn,
       status,

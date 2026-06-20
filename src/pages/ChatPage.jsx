@@ -11,11 +11,13 @@ import {
   fetchConversationDetail,
   findOrCreateDirectConversation,
 } from "../services/conversationService.js";
-import { uploadChatImage } from "../services/storageService.js";
+import { uploadChatImage, uploadChatAudio } from "../services/storageService.js";
 import { buildMessageListItems } from "../utils/messageTransform.js";
 import { formatLastSeen } from "../utils/formatDate.js";
 import ChatLayout from "../components/layout/ChatLayout.jsx";
 import NewChatModal from "../components/conversation/NewChatModal.jsx";
+import CreateGroupModal from "../components/conversation/CreateGroupModal.jsx";
+import GroupInfoPanel from "../components/conversation/GroupInfoPanel.jsx";
 
 export default function ChatPage() {
   const { user, profile, logout } = useAuth();
@@ -26,29 +28,27 @@ export default function ChatPage() {
   const [activeDetail, setActiveDetail] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [newChatOpen, setNewChatOpen] = useState(false);
+  const [newGroupOpen, setNewGroupOpen] = useState(false);
+  const [groupInfoOpen, setGroupInfoOpen] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [imageUploading, setImageUploading] = useState(false);
+  const [audioUploading, setAudioUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  /* ── presence: mark self online for the session, track who else is online ── */
+  /* ── presence ── */
   const { onlineUserIds } = usePresence(user?.id);
 
-  /* ── conversation list (live) ── */
+  /* ── conversation list ── */
   const {
-    conversations,
-    loading: conversationsLoading,
-    error: conversationsError,
-    markRead,
+    conversations, loading: conversationsLoading,
+    error: conversationsError, markRead,
   } = useConversations(user?.id);
 
   const { setActiveId } = useConversationStore();
+  useEffect(() => { setActiveId(conversationId ?? null); }, [conversationId, setActiveId]);
 
-  useEffect(() => {
-    setActiveId(conversationId ?? null);
-  }, [conversationId, setActiveId]);
-
-  /* ── load active conversation's header detail ── */
+  /* ── active conversation detail ── */
   useEffect(() => {
     if (!conversationId || !user?.id) { setActiveDetail(null); return; }
     let cancelled = false;
@@ -60,108 +60,102 @@ export default function ChatPage() {
     return () => { cancelled = true; };
   }, [conversationId, user?.id]);
 
-  // Mark conversation as read once opened
   useEffect(() => {
     if (conversationId) markRead(conversationId);
   }, [conversationId, markRead]);
 
-  /* ── merge live presence into the header's status/last-seen display ──
-     activeDetail's `status` is a snapshot from the DB at load time; without
-     this, the header never reflects the other user coming online/offline
-     or updates "last seen" while you're looking at the conversation. */
+  /* ── merge live presence into active conversation ── */
   const liveActiveDetail = useMemo(() => {
     if (!activeDetail || activeDetail.isGroup) return activeDetail;
-
     const isOnline = onlineUserIds.includes(activeDetail.otherUserId);
     return {
       ...activeDetail,
       status: isOnline ? "online" : "offline",
-      subtitle: isOnline
-        ? "Active now"
-        : formatLastSeen(activeDetail.lastSeenAt),
+      subtitle: isOnline ? "Active now" : formatLastSeen(activeDetail.lastSeenAt),
     };
   }, [activeDetail, onlineUserIds]);
 
-  /* ── messages (history + realtime + send) ── */
+  /* ── merge live presence into sidebar list ── */
+  const liveConversations = useMemo(() =>
+    conversations.map((c) =>
+      c.isGroup ? c : {
+        ...c,
+        status: onlineUserIds.includes(c.otherUserId) ? "online" : "offline",
+      }
+    ), [conversations, onlineUserIds]
+  );
+
+  /* ── messages ── */
   const {
     messages: rawMessages,
     loading: messagesLoading,
     error: messagesError,
     hasMore: messagesHasMore,
     seenByMessageId,
-    sendMessage,
-    sendImage,
-    loadOlder,
-    clearError,
+    sendMessage, sendImage, sendAudio, loadOlder, clearError,
+    setError: setMessagesError,
   } = useMessages(conversationId, user?.id);
 
-  /* ── typing indicator channel ── */
+  /* ── typing ── */
   const { notifyTyping, typingUsers } = useTyping(conversationId, user?.id, profile?.username);
 
-  /* ── transform raw rows into MessageList items (dividers, grouping, seen ticks) ── */
+  /* ── build message list items ── */
   const messageItems = useMemo(() => {
     if (!conversationId) return [];
-    const otherMemberIds = activeDetail?.isGroup
-      ? (activeDetail.members ?? []).filter((m) => m.user_id !== user?.id).map((m) => m.user_id)
-      : activeDetail?.otherUserId ? [activeDetail.otherUserId] : [];
-
+    const otherMemberIds = liveActiveDetail?.isGroup
+      ? (liveActiveDetail.members ?? []).filter((m) => m.user_id !== user?.id).map((m) => m.user_id)
+      : liveActiveDetail?.otherUserId ? [liveActiveDetail.otherUserId] : [];
     return buildMessageListItems({
       messages: rawMessages,
       currentUserId: user?.id,
       seenByMessageId,
       otherMemberIds,
-      isGroup: !!activeDetail?.isGroup,
+      isGroup: !!liveActiveDetail?.isGroup,
     });
-  }, [rawMessages, user?.id, seenByMessageId, activeDetail]);
+  }, [rawMessages, user?.id, seenByMessageId, liveActiveDetail]);
 
-  /* ── merge live presence into sidebar conversation statuses ── */
-  const liveConversations = useMemo(
-    () =>
-      conversations.map((c) =>
-        c.isGroup ? c : { ...c, status: onlineUserIds.includes(c.otherUserId) ? "online" : "offline" }
-      ),
-    [conversations, onlineUserIds]
-  );
-
-  /* ── navigation handlers ── */
+  /* ── handlers ── */
   const handleSelectConversation = useCallback((id) => navigate(`/chat/${id}`), [navigate]);
   const handleBack = useCallback(() => navigate("/chat"), [navigate]);
 
-  /* ── send text ── */
-  const handleSend = useCallback(
-    async (text) => {
-      if (imageFile) {
-        setImageUploading(true);
-        try {
-          const url = await uploadChatImage(imageFile, conversationId, user.id);
-          await sendImage(url, text || null, profile);
-        } catch (err) {
-          console.error("Image upload failed:", err.message);
-        } finally {
-          setImageUploading(false);
-          setImageFile(null);
-          setImagePreview(null);
-        }
-        return;
+  const handleSend = useCallback(async (text) => {
+    if (imageFile) {
+      setImageUploading(true);
+      try {
+        const url = await uploadChatImage(imageFile, conversationId, user.id);
+        await sendImage(url, text || null, profile);
+      } catch (err) {
+        console.error("Image upload failed:", err.message);
+      } finally {
+        setImageUploading(false);
+        setImageFile(null);
+        setImagePreview(null);
       }
-      if (text.trim()) {
-        sendMessage(text, profile);
-      }
-    },
-    [imageFile, conversationId, user, profile, sendImage, sendMessage]
-  );
+      return;
+    }
+    if (text.trim()) sendMessage(text, profile);
+  }, [imageFile, conversationId, user, profile, sendImage, sendMessage]);
 
-  const handleRetry = useCallback(
-    (messageId) => {
-      const failed = rawMessages.find((m) => m.id === messageId);
-      if (failed) sendMessage(failed.content, profile);
-    },
-    [rawMessages, sendMessage, profile]
-  );
+  const handleSendAudio = useCallback(async (audioBlob, duration) => {
+    if (!audioBlob || !conversationId || !user?.id) return;
+    setAudioUploading(true);
+    try {
+      const url = await uploadChatAudio(audioBlob, conversationId, user.id);
+      await sendAudio(url, duration, profile);
+    } catch (err) {
+      console.error("Voice message upload failed:", err.message);
+      setMessagesError(err.message ?? "Failed to send voice message. Please try again.");
+    } finally {
+      setAudioUploading(false);
+    }
+  }, [conversationId, user, profile, sendAudio, setMessagesError]);
 
-  /* ── image attach ── */
+  const handleRetry = useCallback((messageId) => {
+    const failed = rawMessages.find((m) => m.id === messageId);
+    if (failed) sendMessage(failed.content, profile);
+  }, [rawMessages, sendMessage, profile]);
+
   const handleAttachImage = useCallback(() => fileInputRef.current?.click(), []);
-
   const handleFileChange = useCallback((e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -169,27 +163,31 @@ export default function ChatPage() {
     setImagePreview({ url: URL.createObjectURL(file), name: file.name });
     e.target.value = "";
   }, []);
+  const handleRemoveImage = useCallback(() => { setImageFile(null); setImagePreview(null); }, []);
 
-  const handleRemoveImage = useCallback(() => {
-    setImageFile(null);
-    setImagePreview(null);
-  }, []);
+  const handleSelectUser = useCallback(async (otherUserId) => {
+    setNewChatOpen(false);
+    try {
+      const convId = await findOrCreateDirectConversation(user.id, otherUserId);
+      navigate(`/chat/${convId}`);
+    } catch (err) {
+      console.error("Failed to start conversation:", err.message);
+    }
+  }, [user, navigate]);
 
-  /* ── new chat ── */
-  const handleSelectUser = useCallback(
-    async (otherUserId) => {
-      setNewChatOpen(false);
-      try {
-        const convId = await findOrCreateDirectConversation(user.id, otherUserId);
-        navigate(`/chat/${convId}`);
-      } catch (err) {
-        console.error("Failed to start conversation:", err.message);
-      }
-    },
-    [user, navigate]
-  );
+  const handleGroupCreated = useCallback((convId) => {
+    setNewGroupOpen(false);
+    navigate(`/chat/${convId}`);
+  }, [navigate]);
 
-  /* ── logout ── */
+  const handleGroupLeft = useCallback(() => {
+    setGroupInfoOpen(false);
+    navigate("/chat");
+  }, [navigate]);
+
+  // Close the group info panel whenever the active conversation changes
+  useEffect(() => { setGroupInfoOpen(false); }, [conversationId]);
+
   const handleLogout = useCallback(async () => {
     await logout();
     navigate("/login", { replace: true });
@@ -197,13 +195,8 @@ export default function ChatPage() {
 
   return (
     <>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={handleFileChange}
-      />
+      <input ref={fileInputRef} type="file" accept="image/*"
+             className="hidden" onChange={handleFileChange}/>
 
       <ChatLayout
         conversations={liveConversations}
@@ -218,9 +211,9 @@ export default function ChatPage() {
         messagesError={messagesError}
         typingUsers={typingUsers}
         currentUser={{
-          name: profile?.username ?? "You",
+          name:      profile?.username ?? "You",
           avatarSrc: profile?.avatar_url,
-          status: "online",
+          status:    "online",
         }}
         onSelectConversation={handleSelectConversation}
         onBack={handleBack}
@@ -230,15 +223,18 @@ export default function ChatPage() {
         onRetryMessage={handleRetry}
         onDismissError={clearError}
         onNewChat={() => setNewChatOpen(true)}
+        onNewGroup={() => setNewGroupOpen(true)}
         onOpenSettings={() => navigate("/settings")}
         onLogout={handleLogout}
         onToggleTheme={toggleTheme}
         isDark={isDark}
-        onOpenInfo={() => {}}
+        onOpenInfo={() => liveActiveDetail?.isGroup && setGroupInfoOpen(true)}
         onAttachImage={handleAttachImage}
         imagePreview={imagePreview}
         onRemoveImage={handleRemoveImage}
         imageUploading={imageUploading}
+        onSendAudio={handleSendAudio}
+        audioUploading={audioUploading}
       />
 
       <NewChatModal
@@ -246,6 +242,21 @@ export default function ChatPage() {
         onClose={() => setNewChatOpen(false)}
         onSelectUser={handleSelectUser}
         currentUserId={user?.id}
+      />
+
+      <CreateGroupModal
+        open={newGroupOpen}
+        onClose={() => setNewGroupOpen(false)}
+        onCreated={handleGroupCreated}
+        currentUserId={user?.id}
+      />
+
+      <GroupInfoPanel
+        open={groupInfoOpen && !!liveActiveDetail?.isGroup}
+        onClose={() => setGroupInfoOpen(false)}
+        conversationId={conversationId}
+        currentUserId={user?.id}
+        onLeft={handleGroupLeft}
       />
     </>
   );

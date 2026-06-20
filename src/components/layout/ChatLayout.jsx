@@ -5,13 +5,6 @@ import MessageInput from "../chat/MessageInput.jsx";
 import EmptyState from "../chat/EmptyState.jsx";
 import ChatErrorBanner from "../chat/ChatErrorBanner.jsx";
 
-/**
- * Top-level responsive shell for the chat application.
- *
- * Desktop (md+): sidebar + chat window side by side, always both visible.
- * Mobile: single panel — sidebar OR chat window, slides in/out based on
- *         whether a conversation is active.
- */
 export default function ChatLayout({
   conversations = [],
   conversationsLoading = false,
@@ -33,6 +26,7 @@ export default function ChatLayout({
   onRetryMessage,
   onDismissError,
   onNewChat,
+  onNewGroup,
   onOpenSettings,
   onLogout,
   onToggleTheme,
@@ -47,12 +41,11 @@ export default function ChatLayout({
   const showChatOnMobile = !!activeId;
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-surface-base">
-      {/* ── Sidebar ── */}
-      <div
-        className={`h-full w-full shrink-0 md:w-[360px] lg:w-[400px]
-                    ${showChatOnMobile ? "hidden md:flex" : "flex"}`}
-      >
+    <div className="flex h-screen w-full overflow-hidden bg-surface-base transition-colors duration-200">
+
+      {/* Sidebar */}
+      <div className={`h-full w-full shrink-0 md:w-[360px] lg:w-[400px]
+                       ${showChatOnMobile ? "hidden md:flex" : "flex"}`}>
         <Sidebar
           conversations={conversations}
           loading={conversationsLoading}
@@ -61,6 +54,7 @@ export default function ChatLayout({
           onSelect={onSelectConversation}
           currentUser={currentUser}
           onNewChat={onNewChat}
+          onNewGroup={onNewGroup}
           onOpenSettings={onOpenSettings}
           onLogout={onLogout}
           onToggleTheme={onToggleTheme}
@@ -68,21 +62,15 @@ export default function ChatLayout({
         />
       </div>
 
-      {/* ── Chat window ── */}
-      <div
-        className={`relative h-full flex-1 flex-col
-                    ${showChatOnMobile ? "flex animate-slide-in-right md:animate-none" : "hidden md:flex"}`}
-      >
-        {/* Ambient gradient backdrop */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-glow opacity-40" />
+      {/* Chat window */}
+      <div className={`relative h-full flex-1 flex-col
+                       ${showChatOnMobile ? "flex animate-slide-in-right md:animate-none" : "hidden md:flex"}`}>
+        {/* Subtle ambient gradient */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-glow opacity-30"/>
 
         {activeConversation ? (
           <div className="relative z-10 flex h-full flex-col">
-            <ChatHeader
-              conversation={activeConversation}
-              onBack={() => onBack?.()}
-              onOpenInfo={onOpenInfo}
-            />
+            <ChatHeader conversation={activeConversation} onBack={() => onBack?.()} onOpenInfo={onOpenInfo}/>
             <MessageList
               items={messages}
               typingUsers={typingUsers}
@@ -92,7 +80,7 @@ export default function ChatLayout({
               onLoadMore={onLoadMoreMessages}
               onRetryMessage={onRetryMessage}
             />
-            <ChatErrorBanner message={messagesError} onDismiss={onDismissError} />
+            <ChatErrorBanner message={messagesError} onDismiss={onDismissError}/>
             <MessageInput
               onSend={onSend}
               onTyping={onTyping}
@@ -105,7 +93,7 @@ export default function ChatLayout({
           </div>
         ) : (
           <div className="relative z-10 h-full">
-            <EmptyState onNewChat={onNewChat} />
+            <EmptyState onNewChat={onNewChat}/>
           </div>
         )}
       </div>

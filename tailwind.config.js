@@ -1,9 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   darkMode: "class",
   theme: {
     extend: {
@@ -25,40 +22,39 @@ export default {
           mint:    "#34D399",
           amber:   "#FBBF24",
         },
+        // Surface colors now use CSS variables — they respond to dark/light mode toggle
         surface: {
-          base:     "#0B0E14",
-          raised:   "#11151F",
-          overlay:  "#161B26",
-          border:   "#232938",
+          base:    "var(--surface-base)",
+          raised:  "var(--surface-raised)",
+          overlay: "var(--surface-overlay)",
+          border:  "var(--surface-border)",
         },
       },
       fontFamily: {
         sans: ["'DM Sans'", "sans-serif"],
         mono: ["'DM Mono'", "monospace"],
       },
-      borderRadius: {
-        "4xl": "2rem",
-      },
+      borderRadius: { "4xl": "2rem" },
       backgroundImage: {
-        "gradient-bubble":  "linear-gradient(135deg, #6366F1 0%, #D946EF 100%)",
-        "gradient-glow":    "linear-gradient(180deg, rgba(99,102,241,0.25) 0%, rgba(217,70,239,0.08) 100%)",
-        "gradient-active":  "linear-gradient(90deg, rgba(99,102,241,0.16) 0%, rgba(99,102,241,0) 70%)",
+        "gradient-bubble": "linear-gradient(135deg, #6366F1 0%, #D946EF 100%)",
+        "gradient-glow":   "linear-gradient(180deg, rgba(99,102,241,0.15) 0%, rgba(217,70,239,0.05) 100%)",
+        "gradient-active": "linear-gradient(90deg, rgba(99,102,241,0.12) 0%, rgba(99,102,241,0) 70%)",
       },
       boxShadow: {
-        subtle:    "0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06)",
-        message:   "0 2px 8px 0 rgb(0 0 0 / 0.08)",
-        glow:      "0 0 0 1px rgba(99,102,241,0.15), 0 8px 24px -8px rgba(99,102,241,0.35)",
-        "glass":   "0 8px 32px -8px rgb(0 0 0 / 0.45)",
+        subtle:  "0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06)",
+        message: "0 2px 8px 0 rgb(0 0 0 / 0.06)",
+        glow:    "0 0 0 1px rgba(99,102,241,0.15), 0 8px 24px -8px rgba(99,102,241,0.35)",
+        glass:   "0 8px 32px -8px rgb(0 0 0 / 0.2)",
       },
       animation: {
-        "fade-in":      "fadeIn 0.15s ease-out",
-        "slide-up":     "slideUp 0.2s ease-out",
+        "fade-in":        "fadeIn 0.15s ease-out",
+        "slide-up":       "slideUp 0.2s ease-out",
         "slide-in-right": "slideInRight 0.25s cubic-bezier(0.32, 0.72, 0, 1)",
         "slide-in-left":  "slideInLeft 0.25s cubic-bezier(0.32, 0.72, 0, 1)",
-        "bounce-dot":   "bounceDot 1.4s infinite ease-in-out both",
-        "pop-in":       "popIn 0.18s cubic-bezier(0.34, 1.56, 0.64, 1)",
-        "pulse-ring":   "pulseRing 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
-        "spin-slow":    "spin 1.5s linear infinite",
+        "bounce-dot":     "bounceDot 1.4s infinite ease-in-out both",
+        "pop-in":         "popIn 0.18s cubic-bezier(0.34, 1.56, 0.64, 1)",
+        "pulse-ring":     "pulseRing 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "spin-slow":      "spin 1.5s linear infinite",
       },
       keyframes: {
         fadeIn:       { "0%": { opacity: "0" }, "100%": { opacity: "1" } },

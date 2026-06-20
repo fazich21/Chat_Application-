@@ -4,6 +4,7 @@ import {
   fetchMessages,
   sendTextMessage,
   sendImageMessage,
+  sendAudioMessage,
   subscribeToMessages,
   markMessagesSeen,
   subscribeToSeenReceipts,
@@ -176,6 +177,37 @@ export function useMessages(conversationId, userId) {
     [conversationId, userId, appendMessage, reconcileMessage, markMessageFailed, setError]
   );
 
+  /* ── send audio message (optimistic, expects pre-uploaded URL) ── */
+  const sendAudio = useCallback(
+    async (audioUrl, duration, senderProfile) => {
+      if (!audioUrl || !conversationId || !userId) return;
+
+      const tempId = `temp-${Date.now()}`;
+      const optimisticMessage = {
+        id: tempId,
+        conversation_id: conversationId,
+        sender_id: userId,
+        content_type: "audio",
+        audio_url: audioUrl,
+        audio_duration: duration,
+        created_at: new Date().toISOString(),
+        status: "sending",
+        profiles: senderProfile ?? { id: userId, username: "You" },
+      };
+
+      appendMessage(conversationId, optimisticMessage);
+
+      try {
+        const confirmed = await sendAudioMessage({ conversationId, senderId: userId, audioUrl, duration });
+        reconcileMessage(conversationId, tempId, { ...confirmed, status: "sent" });
+      } catch (err) {
+        markMessageFailed(conversationId, tempId);
+        setError(conversationId, err.message ?? "Failed to send voice message.");
+      }
+    },
+    [conversationId, userId, appendMessage, reconcileMessage, markMessageFailed, setError]
+  );
+
   return {
     messages,
     loading,
@@ -184,7 +216,9 @@ export function useMessages(conversationId, userId) {
     seenByMessageId,
     sendMessage,
     sendImage,
+    sendAudio,
     loadOlder,
     clearError: () => setError(conversationId, null),
+    setError: (msg) => setError(conversationId, msg),
   };
 }

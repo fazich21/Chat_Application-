@@ -4,40 +4,70 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Base ─────────────────────────────────────────── */
+/* ── CSS variables — light mode defaults, dark mode overrides ── */
 @layer base {
   :root {
     --sidebar-width: 320px;
     --header-height: 60px;
+
+    /* Surface colors — light mode */
+    --surface-base:    #f1f5f9;
+    --surface-raised:  #ffffff;
+    --surface-overlay: #f8fafc;
+    --surface-border:  #e2e8f0;
+
+    /* Glass effect — light */
+    --glass-bg:     rgba(255,255,255,0.75);
+    --glass-border: rgba(0,0,0,0.08);
+
+    /* Text */
+    --text-primary:   #0f172a;
+    --text-secondary: #475569;
+    --text-muted:     #94a3b8;
   }
 
-  * {
-    @apply box-border;
+  .dark {
+    /* Surface colors — dark mode */
+    --surface-base:    #0B0E14;
+    --surface-raised:  #11151F;
+    --surface-overlay: #161B26;
+    --surface-border:  #232938;
+
+    /* Glass effect — dark */
+    --glass-bg:     rgba(255,255,255,0.03);
+    --glass-border: rgba(255,255,255,0.06);
+
+    /* Text */
+    --text-primary:   #f1f5f9;
+    --text-secondary: #94a3b8;
+    --text-muted:     #475569;
   }
 
-  html {
-    @apply antialiased;
-  }
+  * { @apply box-border; }
+  html { @apply antialiased; }
 
   body {
-    @apply bg-gray-50 text-gray-900 font-sans
-           dark:bg-gray-950 dark:text-gray-100;
+    background-color: var(--surface-base);
+    color: var(--text-primary);
+    font-family: 'DM Sans', sans-serif;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   /* Scrollbar */
-  ::-webkit-scrollbar       { @apply w-1.5; }
-  ::-webkit-scrollbar-track { @apply bg-transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-gray-300 rounded-full dark:bg-gray-700; }
-  ::-webkit-scrollbar-thumb:hover { @apply bg-gray-400 dark:bg-gray-600; }
+  ::-webkit-scrollbar       { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface-border); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 }
 
-/* ── Components ───────────────────────────────────── */
+/* ── Components ── */
 @layer components {
+  /* Buttons */
   .btn {
-    @apply inline-flex items-center justify-center gap-2
-           rounded-xl px-4 py-2.5 text-sm font-medium
-           transition-all duration-150 select-none
-           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50
+    @apply inline-flex items-center justify-center gap-2 rounded-xl
+           px-4 py-2.5 text-sm font-medium transition-all duration-150
+           select-none focus-visible:outline-none focus-visible:ring-2
+           focus-visible:ring-brand-500/50
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-primary {
@@ -45,36 +75,45 @@
            hover:bg-brand-700 active:scale-[0.98];
   }
   .btn-ghost {
-    @apply btn text-gray-600 hover:bg-gray-100 active:bg-gray-200
-           dark:text-gray-300 dark:hover:bg-gray-800 dark:active:bg-gray-700;
+    @apply btn hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10 dark:active:bg-white/10;
+    color: var(--text-secondary);
   }
   .btn-danger {
     @apply btn bg-red-500 text-white hover:bg-red-600 active:scale-[0.98];
   }
-
-  .input {
-    @apply w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5
-           text-sm text-gray-900 placeholder:text-gray-400
-           transition duration-150
-           focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400
-           disabled:opacity-50 disabled:cursor-not-allowed
-           dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100
-           dark:placeholder:text-gray-500 dark:focus:border-brand-500;
+  .btn-outline {
+    @apply btn border hover:bg-black/5 dark:hover:bg-white/5;
+    border-color: var(--surface-border);
+    color: var(--text-secondary);
   }
 
+  /* Input */
+  .input {
+    @apply w-full rounded-xl px-3.5 py-2.5 text-sm
+           transition duration-150 outline-none
+           focus:ring-2 focus:ring-brand-500/40 focus:border-brand-400
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    background: var(--surface-overlay);
+    border: 1px solid var(--surface-border);
+    color: var(--text-primary);
+  }
+  .input::placeholder { color: var(--text-muted); }
+
+  /* Card */
   .card {
-    @apply bg-white rounded-2xl border border-gray-100 shadow-subtle
-           dark:bg-gray-900 dark:border-gray-800;
+    @apply rounded-2xl shadow-subtle;
+    background: var(--surface-raised);
+    border: 1px solid var(--surface-border);
   }
 
   /* Sidebar item */
   .sidebar-item {
-    @apply flex items-center gap-3 rounded-xl px-3 py-2.5
-           text-sm font-medium text-gray-700 cursor-pointer
-           transition-all duration-100
-           hover:bg-gray-100
-           dark:text-gray-300 dark:hover:bg-gray-800/70;
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm
+           font-medium cursor-pointer transition-all duration-100;
+    color: var(--text-secondary);
   }
+  .sidebar-item:hover { background: rgba(0,0,0,0.04); }
+  .dark .sidebar-item:hover { background: rgba(255,255,255,0.04); }
   .sidebar-item-active {
     @apply sidebar-item bg-brand-50 text-brand-700
            dark:bg-brand-900/30 dark:text-brand-300;
@@ -82,22 +121,33 @@
 
   /* Avatar */
   .avatar {
-    @apply relative inline-flex items-center justify-center
-           rounded-full bg-brand-100 font-medium text-brand-700
-           dark:bg-brand-900/40 dark:text-brand-300 shrink-0;
+    @apply relative inline-flex items-center justify-center rounded-full
+           font-medium shrink-0;
   }
 
   /* Status dot */
-  .status-dot {
-    @apply absolute bottom-0 right-0 size-2.5 rounded-full ring-2 ring-white
-           dark:ring-gray-950;
-  }
+  .status-dot { @apply absolute bottom-0 right-0 size-2.5 rounded-full ring-2; }
+  .status-dot { ring-color: var(--surface-raised); }
   .status-online  { @apply status-dot bg-emerald-400; }
   .status-away    { @apply status-dot bg-amber-400; }
   .status-offline { @apply status-dot bg-gray-400; }
+
+  /* Glass — uses CSS vars so it adapts to theme */
+  .glass {
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+  }
+  .glass-strong {
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+  }
 }
 
-/* ── Utilities ────────────────────────────────────── */
+/* ── Utilities ── */
 @layer utilities {
   .truncate-2 {
     display: -webkit-box;
@@ -106,28 +156,24 @@
     overflow: hidden;
   }
 
-  /* Glassmorphism panels — used in chat UI */
-  .glass {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(20px) saturate(160%);
-    -webkit-backdrop-filter: blur(20px) saturate(160%);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-  }
-  .glass-strong {
-    background: rgba(22, 27, 38, 0.7);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-  }
+  /* Surface background helpers — respond to theme */
+  .bg-surface-base    { background-color: var(--surface-base); }
+  .bg-surface-raised  { background-color: var(--surface-raised); }
+  .bg-surface-overlay { background-color: var(--surface-overlay); }
 
-  /* Custom scrollbar for dark chat panels */
+  /* Border helper */
+  .border-surface { border-color: var(--surface-border); }
+
+  /* Text helpers */
+  .text-surface-primary   { color: var(--text-primary); }
+  .text-surface-secondary { color: var(--text-secondary); }
+  .text-surface-muted     { color: var(--text-muted); }
+
+  /* Scrollbar dark variant */
   .scroll-dark::-webkit-scrollbar       { width: 6px; }
   .scroll-dark::-webkit-scrollbar-track { background: transparent; }
   .scroll-dark::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--surface-border);
     border-radius: 999px;
-  }
-  .scroll-dark::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.16);
   }
 }
