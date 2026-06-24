@@ -48,7 +48,7 @@ export default function ForgotPasswordForm() {
           <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
             If an account exists for{" "}
             <span className="font-medium text-gray-700 dark:text-gray-300">{email}</span>,
-            you'll receive a password reset link shortly.
+            you'll receive a password reset link shortly.....
           </p>
         </div>
         <Button variant="outline" className="w-full" onClick={() => { setSent(false); setEmail(""); }}>
