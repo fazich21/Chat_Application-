@@ -17,6 +17,7 @@ A modern web application built with React and Vite, designed to deliver a fast, 
 * JavaScript (ES6+)
 * HTML5
 * CSS3
+* Supabase
 
 ## Installation
 
