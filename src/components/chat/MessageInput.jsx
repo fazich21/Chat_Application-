@@ -12,7 +12,6 @@ export default function MessageInput({
   const [text, setText] = useState("");
   const [emojiOpen, setEmojiOpen] = useState(false);
   const textareaRef = useRef(null);
-
   const recorder = useAudioRecorder();
   const isRecordingMode = recorder.status === "recording" || recorder.status === "stopped";
 
@@ -24,11 +23,13 @@ export default function MessageInput({
   }, [text]);
 
   const handleChange = (e) => { setText(e.target.value); onTyping?.(); };
+
   const handleEmojiSelect = (emoji) => {
     setText((t) => t + emoji);
     onTyping?.();
     textareaRef.current?.focus();
   };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const trimmed = text.trim();
@@ -37,13 +38,12 @@ export default function MessageInput({
     setText("");
     setEmojiOpen(false);
   };
+
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); }
   };
 
-  const handleMicClick = () => {
-    recorder.start();
-  };
+  const handleMicClick = () => { recorder.start(); };
 
   const handleVoiceSend = async () => {
     if (!recorder.audioBlob) return;
@@ -51,14 +51,13 @@ export default function MessageInput({
     recorder.reset();
   };
 
-  // Permission denied / unsupported feedback
   if (recorder.status === "denied") {
     return (
       <div className="border-t border-surface-border bg-surface-raised/90 backdrop-blur-xl px-4 py-3">
         <div className="flex items-center justify-between rounded-2xl bg-red-50 dark:bg-red-500/10
                         border border-red-200 dark:border-red-900/40 px-4 py-3">
           <p className="text-sm text-red-600 dark:text-red-400">
-            Microphone access denied. Allow it in your browser settings to send voice messages.
+            Microphone access denied. Allow it in your browser settings.
           </p>
           <button onClick={recorder.reset} className="text-red-500 hover:text-red-600 shrink-0 ml-3">
             <XIcon className="size-4"/>

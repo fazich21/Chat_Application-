@@ -137,18 +137,18 @@ export default function ChatPage() {
   }, [imageFile, conversationId, user, profile, sendImage, sendMessage]);
 
   const handleSendAudio = useCallback(async (audioBlob, duration) => {
-    if (!audioBlob || !conversationId || !user?.id) return;
+    if (!audioBlob || !conversationId || !user?.id) {
+      return;
+    }
     setAudioUploading(true);
     try {
       const url = await uploadChatAudio(audioBlob, conversationId, user.id);
       await sendAudio(url, duration, profile);
     } catch (err) {
-      console.error("Voice message upload failed:", err.message);
-      setMessagesError(err.message ?? "Failed to send voice message. Please try again.");
     } finally {
       setAudioUploading(false);
     }
-  }, [conversationId, user, profile, sendAudio, setMessagesError]);
+  }, [conversationId, user, profile, sendAudio]); // removed setMessagesError from deps
 
   const handleRetry = useCallback((messageId) => {
     const failed = rawMessages.find((m) => m.id === messageId);

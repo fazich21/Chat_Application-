@@ -36,6 +36,8 @@ export default function ChatLayout({
   imagePreview,
   onRemoveImage,
   imageUploading = false,
+  onSendAudio,
+  audioUploading = false,
   sendDisabled = false,
 }) {
   const showChatOnMobile = !!activeId;
@@ -65,7 +67,6 @@ export default function ChatLayout({
       {/* Chat window */}
       <div className={`relative h-full flex-1 flex-col
                        ${showChatOnMobile ? "flex animate-slide-in-right md:animate-none" : "hidden md:flex"}`}>
-        {/* Subtle ambient gradient */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-glow opacity-30"/>
 
         {activeConversation ? (
@@ -87,6 +88,8 @@ export default function ChatLayout({
               onAttachImage={onAttachImage}
               imagePreview={imagePreview}
               onRemoveImage={onRemoveImage}
+              onSendAudio={onSendAudio}
+              audioUploading={audioUploading}
               placeholder={`Message ${activeConversation.name}`}
               disabled={sendDisabled || imageUploading}
             />
