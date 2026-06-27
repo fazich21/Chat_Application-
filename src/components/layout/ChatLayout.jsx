@@ -32,6 +32,8 @@ export default function ChatLayout({
   onToggleTheme,
   isDark = true,
   onOpenInfo,
+  onStartCall,
+  onStartVideoCall,
   onAttachImage,
   imagePreview,
   onRemoveImage,
@@ -71,7 +73,13 @@ export default function ChatLayout({
 
         {activeConversation ? (
           <div className="relative z-10 flex h-full flex-col">
-            <ChatHeader conversation={activeConversation} onBack={() => onBack?.()} onOpenInfo={onOpenInfo}/>
+            <ChatHeader
+              conversation={activeConversation}
+              onBack={() => onBack?.()}
+              onOpenInfo={onOpenInfo}
+              onStartCall={onStartCall}
+              onStartVideoCall={onStartVideoCall}
+            />
             <MessageList
               items={messages}
               typingUsers={typingUsers}

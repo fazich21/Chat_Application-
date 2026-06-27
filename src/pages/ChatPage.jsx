@@ -6,6 +6,7 @@ import { useConversations } from "../hooks/useConversations.js";
 import { useMessages } from "../hooks/useMessages.js";
 import { useTyping } from "../hooks/useTyping.js";
 import { usePresence } from "../hooks/usePresence.js";
+import { useCall } from "../hooks/useCall.js";
 import { useConversationStore } from "../store/conversationStore.js";
 import {
   fetchConversationDetail,
@@ -15,6 +16,7 @@ import { uploadChatImage, uploadChatAudio } from "../services/storageService.js"
 import { buildMessageListItems } from "../utils/messageTransform.js";
 import { formatLastSeen } from "../utils/formatDate.js";
 import ChatLayout from "../components/layout/ChatLayout.jsx";
+import CallOverlay from "../components/chat/CallOverlay.jsx";
 import NewChatModal from "../components/conversation/NewChatModal.jsx";
 import CreateGroupModal from "../components/conversation/CreateGroupModal.jsx";
 import GroupInfoPanel from "../components/conversation/GroupInfoPanel.jsx";
@@ -64,18 +66,17 @@ export default function ChatPage() {
     if (conversationId) markRead(conversationId);
   }, [conversationId, markRead]);
 
-  /* ── merge live presence into active conversation ── */
+  /* ── live presence merge ── */
   const liveActiveDetail = useMemo(() => {
     if (!activeDetail || activeDetail.isGroup) return activeDetail;
     const isOnline = onlineUserIds.includes(activeDetail.otherUserId);
     return {
       ...activeDetail,
-      status: isOnline ? "online" : "offline",
+      status:   isOnline ? "online" : "offline",
       subtitle: isOnline ? "Active now" : formatLastSeen(activeDetail.lastSeenAt),
     };
   }, [activeDetail, onlineUserIds]);
 
-  /* ── merge live presence into sidebar list ── */
   const liveConversations = useMemo(() =>
     conversations.map((c) =>
       c.isGroup ? c : {
@@ -93,13 +94,25 @@ export default function ChatPage() {
     hasMore: messagesHasMore,
     seenByMessageId,
     sendMessage, sendImage, sendAudio, loadOlder, clearError,
-    setError: setMessagesError,
   } = useMessages(conversationId, user?.id);
 
   /* ── typing ── */
-  const { notifyTyping, typingUsers } = useTyping(conversationId, user?.id, profile?.username);
+  const { notifyTyping, typingUsers } = useTyping(
+    conversationId, user?.id, profile?.username
+  );
 
-  /* ── build message list items ── */
+  /* ── calls ── */
+  const {
+    callState, roomUrl, isVideo, callerName, error: callError,
+    isCreatingRoom, startCall, acceptCall, rejectCall, endCall,
+  } = useCall(
+    conversationId,
+    user?.id,
+    liveActiveDetail?.otherUserId,
+    profile?.username ?? "Someone"
+  );
+
+  /* ── message items ── */
   const messageItems = useMemo(() => {
     if (!conversationId) return [];
     const otherMemberIds = liveActiveDetail?.isGroup
@@ -137,18 +150,17 @@ export default function ChatPage() {
   }, [imageFile, conversationId, user, profile, sendImage, sendMessage]);
 
   const handleSendAudio = useCallback(async (audioBlob, duration) => {
-    if (!audioBlob || !conversationId || !user?.id) {
-      return;
-    }
+    if (!audioBlob || !conversationId || !user?.id) return;
     setAudioUploading(true);
     try {
       const url = await uploadChatAudio(audioBlob, conversationId, user.id);
       await sendAudio(url, duration, profile);
     } catch (err) {
+      console.error("Audio upload failed:", err.message);
     } finally {
       setAudioUploading(false);
     }
-  }, [conversationId, user, profile, sendAudio]); // removed setMessagesError from deps
+  }, [conversationId, user, profile, sendAudio]);
 
   const handleRetry = useCallback((messageId) => {
     const failed = rawMessages.find((m) => m.id === messageId);
@@ -163,7 +175,9 @@ export default function ChatPage() {
     setImagePreview({ url: URL.createObjectURL(file), name: file.name });
     e.target.value = "";
   }, []);
-  const handleRemoveImage = useCallback(() => { setImageFile(null); setImagePreview(null); }, []);
+  const handleRemoveImage = useCallback(
+    () => { setImageFile(null); setImagePreview(null); }, []
+  );
 
   const handleSelectUser = useCallback(async (otherUserId) => {
     setNewChatOpen(false);
@@ -185,7 +199,6 @@ export default function ChatPage() {
     navigate("/chat");
   }, [navigate]);
 
-  // Close the group info panel whenever the active conversation changes
   useEffect(() => { setGroupInfoOpen(false); }, [conversationId]);
 
   const handleLogout = useCallback(async () => {
@@ -197,6 +210,21 @@ export default function ChatPage() {
     <>
       <input ref={fileInputRef} type="file" accept="image/*"
              className="hidden" onChange={handleFileChange}/>
+
+      {/* Call error toast */}
+      {callError && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-pop-in">
+          <div className="flex items-center gap-2.5 rounded-xl bg-surface-raised
+                          border border-surface-border shadow-glass px-4 py-2.5">
+            <svg className="size-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24"
+                 stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round"
+                    d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-8.625 6.375h.008v.008h-.008z"/>
+            </svg>
+            <p className="text-sm text-surface-primary">{callError}</p>
+          </div>
+        </div>
+      )}
 
       <ChatLayout
         conversations={liveConversations}
@@ -229,12 +257,28 @@ export default function ChatPage() {
         onToggleTheme={toggleTheme}
         isDark={isDark}
         onOpenInfo={() => liveActiveDetail?.isGroup && setGroupInfoOpen(true)}
+        onStartCall={() => startCall(false)}
+        onStartVideoCall={() => startCall(true)}
         onAttachImage={handleAttachImage}
         imagePreview={imagePreview}
         onRemoveImage={handleRemoveImage}
         imageUploading={imageUploading}
         onSendAudio={handleSendAudio}
         audioUploading={audioUploading}
+      />
+
+      {/* Call overlay — renders on top of everything when a call is active */}
+      <CallOverlay
+        callState={callState}
+        roomUrl={roomUrl}
+        isVideo={isVideo}
+        callerName={callerName}
+        otherUserName={liveActiveDetail?.name ?? ""}
+        otherUserAvatar={liveActiveDetail?.avatarSrc}
+        currentUserName={profile?.username ?? "Pulse User"}
+        onAccept={acceptCall}
+        onReject={rejectCall}
+        onEnd={endCall}
       />
 
       <NewChatModal

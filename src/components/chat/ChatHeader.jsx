@@ -1,7 +1,9 @@
 import Avatar from "../shared/Avatar.jsx";
 import { ArrowLeftIcon, PhoneIcon, VideoIcon, InfoIcon, UsersIcon } from "../shared/icons.jsx";
 
-export default function ChatHeader({ conversation, onBack, onOpenInfo }) {
+export default function ChatHeader({
+  conversation, onBack, onOpenInfo, onStartCall, onStartVideoCall,
+}) {
   if (!conversation) return null;
   const { name, avatarSrc, status, isGroup, memberCount, subtitle } = conversation;
 
@@ -36,20 +38,43 @@ export default function ChatHeader({ conversation, onBack, onOpenInfo }) {
           </div>
         </button>
       </div>
+
       <div className="flex items-center gap-1">
-        {[
-          { icon: PhoneIcon, label: "Voice call" },
-          { icon: VideoIcon, label: "Video call", hidden: true },
-          { icon: InfoIcon, label: "Info", onClick: onOpenInfo },
-        ].map(({ icon: Icon, label, hidden, onClick }) => (
-          <button key={label} onClick={onClick}
-            className={`${hidden ? "hidden sm:flex" : "flex"} size-9 items-center justify-center
-                        rounded-xl text-surface-secondary hover:bg-black/5 dark:hover:bg-white/5
-                        transition-colors`}
-            aria-label={label}>
-            <Icon className="size-[18px]"/>
+        {/* Voice call — only for direct chats */}
+        {!isGroup && (
+          <button
+            onClick={onStartCall}
+            className="flex size-9 items-center justify-center rounded-xl
+                       text-surface-secondary hover:bg-black/5 dark:hover:bg-white/5
+                       hover:text-brand-500 transition-colors"
+            aria-label="Voice call"
+          >
+            <PhoneIcon className="size-[18px]"/>
           </button>
-        ))}
+        )}
+
+        {/* Video call — only for direct chats */}
+        {!isGroup && (
+          <button
+            onClick={onStartVideoCall}
+            className="hidden sm:flex size-9 items-center justify-center rounded-xl
+                       text-surface-secondary hover:bg-black/5 dark:hover:bg-white/5
+                       hover:text-brand-500 transition-colors"
+            aria-label="Video call"
+          >
+            <VideoIcon className="size-[18px]"/>
+          </button>
+        )}
+
+        <button
+          onClick={onOpenInfo}
+          className="flex size-9 items-center justify-center rounded-xl
+                     text-surface-secondary hover:bg-black/5 dark:hover:bg-white/5
+                     transition-colors"
+          aria-label="Info"
+        >
+          <InfoIcon className="size-[18px]"/>
+        </button>
       </div>
     </header>
   );
